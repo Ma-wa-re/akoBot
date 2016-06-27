@@ -104,7 +104,9 @@ class Ako(discord.Client):
 
     # Add server to json file
     def add_server_json(self, server):
+        # Add values to serverConfig
         self.serverConfig.update({server.id: {'Prefix': self.defaultPrefix, 'Welcome': True}})
+        # Save json file
         self.save_server_json()
 
     # Print Bot username and ID when ready and load any server info if there is any
@@ -117,7 +119,7 @@ class Ako(discord.Client):
         self.load_plugins()
         self.load_server_json()
 
-    # When bot joins server
+    # When the bot joins server
     async def on_server_join(self, server):
         # Print to console name and ID of server joined
         print('JOINED SERVER: {0.name} ({0.id})'.format(server))
@@ -125,22 +127,31 @@ class Ako(discord.Client):
 
     # When the bot receives a message
     async def on_message(self, message):
+        # Check if message starts with the servers prefix
+        commandfound = False
         if message.content.startswith(self.serverConfig[message.server.id]['Prefix']):
             commandfull = message.content[1:]
-            # Show setting for the server message was sent in
-            if commandfull.lower() == 'settings':
-                msg = ':gear: Settings for {0}:\nCommand Prefix: ```{1}```\nWelcome User: ```{2}```'
-                await self.send_message(message.channel, msg.format(message.server.name, self.serverConfig[message.server.id]['Prefix'], self.serverConfig[message.server.id]['Welcome']))
+            command = commandfull.split(' ')
+            if command[0] in self.plugins:
+                # Check plugins first if not found check built-in
+                commandfound = await self.plugins[command[0]].run(message)
 
-            # Command to change servers prefix
-            elif commandfull.startswith('setprefix'):
-                arg = commandfull.replace('setprefix ', '')
-                if len(arg) != 1:
-                    await self.send_message(message.channel, ':warning: Invalid number of arguments')
-                else:
-                    self.serverConfig[message.server.id]['Prefix'] = arg
-                    self.save_server_json()
-                    await self.send_message(message.channel, ':white_check_mark: Prefix changed to {0}'.format(arg))
+            # If plugin does not find the command being looked for
+            if not commandfound:
+                # Show setting for the server message was sent in
+                if commandfull.lower() == 'settings':
+                    msg = ':gear: Settings for {0}:\nCommand Prefix: `{1[Prefix]}`\nWelcome User: `{1[Welcome]}`'
+                    await self.send_message(message.channel, msg.format(message.server.name, self.serverConfig[message.server.id]))
+
+                # Command to change servers prefix
+                elif commandfull.startswith('setprefix'):
+                    arg = commandfull.replace('setprefix ', '')
+                    if len(arg) != 1:
+                        await self.send_message(message.channel, ':warning: Invalid number of arguments')
+                    else:
+                        self.serverConfig[message.server.id]['Prefix'] = arg
+                        self.save_server_json()
+                        await self.send_message(message.channel, ':white_check_mark: Prefix changed to {0}'.format(arg))
 
 
 # Run Bot if configuration file is loaded
