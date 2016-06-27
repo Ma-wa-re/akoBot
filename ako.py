@@ -106,8 +106,26 @@ class Ako(discord.Client):
         # Print to console name and ID of server joined
         print('JOINED SERVER: {0.name} ({0.id})'.format(server))
         # Create new value for server in server settings
-        settings = {'Prefix': self.defaultPrefix, 'Welcome': True}
+        settings = {'Prefix': self.defaultPrefix, 'Welcome': True,
+        'WelcomeMessage': "Welcome %user% To %server%, The command prefix for this server is %prefix%"}
         self.serverConfig = akojson.load_server_json(self.serverConfig, server, settings)
+
+    # When a user joins a server
+    async def on_member_join(self, member):
+        server = member.server
+        if self.serverConfig[server.id]['Welcome']:
+            message =  self.serverConfig[server.id]['WelcomeMessage']
+            prefix = self.serverConfig[server.id]['Prefix']
+
+            if '%user%' in message:
+                message = message.replace('%user%', member.mention)
+            if '%server%' in message:
+                message = message.replace('%server%', server.name)
+            if '%prefix%'  in message:
+                message = message.replace('%prefix%', prefix)
+
+            await asyncio.sleep(2)
+            await self.send_message(server, message)
 
     # When the bot receives a message
     async def on_message(self, message):
@@ -124,7 +142,8 @@ class Ako(discord.Client):
             if not commandfound:
                 # Show setting for the server message was sent in
                 if commandfull.lower() == 'settings':
-                    msg = ':gear: Settings for {0}:\nCommand Prefix: `{1[Prefix]}`\nWelcome User: `{1[Welcome]}`'
+                    msg = ':gear: Settings for {0}:\nCommand Prefix: `{1[Prefix]}`\nWelcome User: `{1[Welcome]}`\
+                    \nWelcome Message: `{1[WelcomeMessage]}`'
                     await self.send_message(message.channel, msg.format(message.server.name, self.serverConfig[message.server.id]))
 
                 # Command to change servers prefix
@@ -136,6 +155,20 @@ class Ako(discord.Client):
                         self.serverConfig[message.server.id]['Prefix'] = arg
                         akojson.save_server_json(self.serverConfig)
                         await self.send_message(message.channel, ':white_check_mark: Prefix changed to `{0}`'.format(arg))
+
+                # Set the welcome message for the server
+                elif commandfull.startswith('setwelcomemessage'):
+                    arg = commandfull.replace('setwelcomemessage ', '')
+                    self.serverConfig[message.server.id]['WelcomeMessage'] = arg
+                    akojson.save_server_json(self.serverConfig)
+                    await self.send_message(message.channel, ':white_check_mark: Welcome Message changed to `{0}`'.format(arg))
+
+                # Set if welcome message is active
+                elif commandfull.lower() == 'welcomeuser':
+                    self.serverConfig[message.server.id]['Welcome'] =  not self.serverConfig[message.server.id]['Welcome']
+                    akojson.save_server_json(self.serverConfig)
+                    await self.send_message(message.channel, ':white_check_mark: Welcome User changed to `{0}`'.format(self.serverConfig[message.server.id]['Welcome']))
+
 
 
 # Run Bot if configuration file is loaded
