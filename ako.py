@@ -7,6 +7,8 @@ import time
 import sys
 import os
 import glob
+# Bot specific modules
+import akojson
 
 # Make Plugin folder if it does't exist
 if not os.path.isdir('plugins'):
@@ -88,27 +90,6 @@ class Ako(discord.Client):
                 self.plugins[name] = plugin.LoadPlugin(self)
                 print('Loaded plugin: {0}'.format(name))
 
-    # Load server config json file
-    def load_server_json(self):
-        if os.path.isfile('config/servers.json'):
-            try:
-                with open('config/servers.json') as data_file:
-                    self.serverConfig = json.load(data_file)
-            except json.decoder.JSONDecodeError:
-                self.serverConfig = {}
-
-    # Save server config json file
-    def save_server_json(self):
-        with open('config/servers.json', 'w') as data_file:
-            json.dump(self.serverConfig, data_file)
-
-    # Add server to json file
-    def add_server_json(self, server):
-        # Add values to serverConfig
-        self.serverConfig.update({server.id: {'Prefix': self.defaultPrefix, 'Welcome': True}})
-        # Save json file
-        self.save_server_json()
-
     # Print Bot username and ID when ready and load any server info if there is any
     async def on_ready(self):
         # Print Bots Name and ID to console
@@ -117,13 +98,16 @@ class Ako(discord.Client):
         print('ID: {}'.format(self.user.id))
         print('--------------------')
         self.load_plugins()
-        self.load_server_json()
+        self.serverConfig = akojson.load_server_json()
+
 
     # When the bot joins server
     async def on_server_join(self, server):
         # Print to console name and ID of server joined
         print('JOINED SERVER: {0.name} ({0.id})'.format(server))
-        self.add_server_json(server)
+        # Create new value for server in server settings
+        settings = {'Prefix': self.defaultPrefix, 'Welcome': True}
+        self.serverConfig = akojson.load_server_json(self.serverConfig, server, settings)
 
     # When the bot receives a message
     async def on_message(self, message):
@@ -150,8 +134,8 @@ class Ako(discord.Client):
                         await self.send_message(message.channel, ':warning: Invalid number of arguments')
                     else:
                         self.serverConfig[message.server.id]['Prefix'] = arg
-                        self.save_server_json()
-                        await self.send_message(message.channel, ':white_check_mark: Prefix changed to {0}'.format(arg))
+                        akojson.save_server_json(self.serverConfig)
+                        await self.send_message(message.channel, ':white_check_mark: Prefix changed to `{0}`'.format(arg))
 
 
 # Run Bot if configuration file is loaded
