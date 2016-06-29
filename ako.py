@@ -77,6 +77,8 @@ class Ako(discord.Client):
         self.plugins = {}
         # Info/Config for each servers
         self.serverConfig = {}
+        # The owner of the bots Discord ID
+        self.ownerID = config['MAIN']['OwnerID']
 
     # Replace built-in run command to include our bot's token
     def start(self):
@@ -129,6 +131,10 @@ class Ako(discord.Client):
 
     # When the bot receives a message
     async def on_message(self, message):
+        # Check is user has the manage server permission
+        permissions = message.author.permissions_in(message.channel)
+        admin = permissions.manage_server
+
         # Check if message starts with the servers prefix
         commandfound = False
         if message.content.startswith(self.serverConfig[message.server.id]['Prefix']):
@@ -140,36 +146,80 @@ class Ako(discord.Client):
 
             # If plugin does not find the command being looked for
             if not commandfound:
+                ### Admin Commands ###
                 # Show setting for the server message was sent in
                 if commandfull.lower() == 'settings':
-                    msg = ':gear: Settings for {0}:\nCommand Prefix: `{1[Prefix]}`\nWelcome User: `{1[Welcome]}`\
-                    \nWelcome Message: `{1[WelcomeMessage]}`'
-                    await self.send_message(message.channel, msg.format(message.server.name, self.serverConfig[message.server.id]))
+                    if admin:
+                        msg = ':gear: Settings for {0}:\nCommand Prefix: `{1[Prefix]}`\nWelcome User: `{1[Welcome]}`\
+                        \nWelcome Message: `{1[WelcomeMessage]}`\nTo see the commands to change the settings, type: {1[Prefix]}settingshelp'
+                        await self.send_message(message.channel, msg.format(message.server.name, self.serverConfig[message.server.id]))
+                    else:
+                        await self.send_message(message.channel, ':warning: You need to have the manage server permission to use this command')
 
                 # Command to change servers prefix
                 elif commandfull.startswith('setprefix'):
-                    arg = commandfull.replace('setprefix ', '')
-                    if len(arg) != 1:
-                        await self.send_message(message.channel, ':warning: Invalid number of arguments')
+                    if admin:
+                        arg = commandfull.replace('setprefix ', '')
+                        if len(arg) != 1:
+                            await self.send_message(message.channel, ':warning: Invalid number of arguments')
+                        else:
+                            self.serverConfig[message.server.id]['Prefix'] = arg
+                            akojson.save_server_json(self.serverConfig)
+                            await self.send_message(message.channel, ':white_check_mark: Prefix changed to `{0}`'.format(arg))
                     else:
-                        self.serverConfig[message.server.id]['Prefix'] = arg
-                        akojson.save_server_json(self.serverConfig)
-                        await self.send_message(message.channel, ':white_check_mark: Prefix changed to `{0}`'.format(arg))
+                        await self.send_message(message.channel, ':warning: You need to have the manage server permission to use this command')
 
                 # Set the welcome message for the server
-                elif commandfull.startswith('setwelcomemessage'):
-                    arg = commandfull.replace('setwelcomemessage ', '')
-                    self.serverConfig[message.server.id]['WelcomeMessage'] = arg
-                    akojson.save_server_json(self.serverConfig)
-                    await self.send_message(message.channel, ':white_check_mark: Welcome Message changed to `{0}`'.format(arg))
+                elif commandfull.startswith('setwelcome'):
+                    if admin:
+                        arg = commandfull.replace('setwelcome ', '')
+                        self.serverConfig[message.server.id]['WelcomeMessage'] = arg
+                        akojson.save_server_json(self.serverConfig)
+                        await self.send_message(message.channel, ':white_check_mark: Welcome Message changed to `{0}`'.format(arg))
+                    else:
+                        await self.send_message(message.channel, ':warning: You need to have the manage server permission to use this command')
 
                 # Set if welcome message is active
                 elif commandfull.lower() == 'welcomeuser':
-                    self.serverConfig[message.server.id]['Welcome'] =  not self.serverConfig[message.server.id]['Welcome']
-                    akojson.save_server_json(self.serverConfig)
-                    await self.send_message(message.channel, ':white_check_mark: Welcome User changed to `{0}`'.format(self.serverConfig[message.server.id]['Welcome']))
+                    if admin:
+                        self.serverConfig[message.server.id]['Welcome'] =  not self.serverConfig[message.server.id]['Welcome']
+                        akojson.save_server_json(self.serverConfig)
+                        await self.send_message(message.channel, ':white_check_mark: Welcome User changed to `{0}`'.format(self.serverConfig[message.server.id]['Welcome']))
+                    else:
+                        await self.send_message(message.channel, ':warning: You need to have the manage server permission to use this command')
 
+                # Show help to change server setting
+                elif commandfull.lower() == 'settingshelp':
+                    if admin:
+                        msg = ('```\n'
+                              'Commands to change server settings for bot:\n'
+                              '-------------------------------------------\n'
+                              '{0[Prefix]}setprefix <character> - Change command prefix for server\n'
+                              '{0[Prefix]}welcomeuser - Toggle if bot welcome a new user to the server\n'
+                              '{0[Prefix]}setwelcome <String> - Change the welcome message\n'
+                              '-----------------------------------------------------------\n'
+                              'Custom variables for setwelcome:\n'
+                              '%user% - The user that joined\n'
+                              '%server% - The servers name\n'
+                              '%prefix% - The current command prefix\n'
+                              '```')
 
+                        await self.send_message(message.channel, msg.format(self.serverConfig[message.server.id]))
+
+                    else:
+                        await self.send_message(message.channel, ':warning: You need to have the manage server permission to use this command')
+
+                ### Plugin Commands ###
+                # Reload plugings for bot
+                elif commandfull.lower() == 'reloadplugins':
+                    if message.author.id == self.ownerID:
+                        await self.send_message(message.channel, ':alarm_clock:  Reloading Plugins, Please wait')
+                        await self.send_typing(message.channel)
+                        import_plugins()
+                        self.load_plugins()
+                        await self.send_message(message.channel, ':ballot_box_with_check: Plugins reloaded')
+                    else:
+                        await self.send_message(message.channel, ':no_entry_sign: Only the owner of the bot can reload plugins')
 
 # Run Bot if configuration file is loaded
 if loaded_config:
