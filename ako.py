@@ -227,7 +227,7 @@ class Ako(discord.Client):
                     for name, plugin in self.plugins.items():
                         msg += name + ' - ' + plugin.description + '\n'
 
-                        msg += '```'
+                    msg += '```'
                     await self.send_message(message.channel, msg)
 
 # Run Bot if configuration file is loaded

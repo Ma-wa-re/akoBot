@@ -3,7 +3,7 @@ import configparser
 import os
 
 class LoadPlugin:
-
+    # Description of plugin
     description = 'Get osu! data for users and beatmaps'
     # When the plugin is loaded
     def __init__(self, client):
