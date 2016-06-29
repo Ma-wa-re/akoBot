@@ -221,6 +221,15 @@ class Ako(discord.Client):
                     else:
                         await self.send_message(message.channel, ':no_entry_sign: Only the owner of the bot can reload plugins')
 
+                # Show installed plugins
+                elif commandfull.lower() == 'plugins':
+                    msg = 'Installed Plugins:\n```'
+                    for name, plugin in self.plugins.items():
+                        msg += name + ' - ' + plugin.description + '\n'
+
+                        msg += '```'
+                    await self.send_message(message.channel, msg)
+
 # Run Bot if configuration file is loaded
 if loaded_config:
     run = True
