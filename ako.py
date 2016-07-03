@@ -230,6 +230,13 @@ class Ako(discord.Client):
                     msg += '```'
                     await self.send_message(message.channel, msg)
 
+                ### Fun ###
+                elif commandfull.lower() == 'boop':
+                    await self.send_message(message.channel, 'BEEP!')
+
+        if message.content.lower() == 'ping' and not message.author.bot:
+            await self.send_message(message.channel, 'Pong!')
+
 # Run Bot if configuration file is loaded
 if loaded_config:
     run = True
